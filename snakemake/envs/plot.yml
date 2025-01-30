@@ -1,0 +1,13 @@
+name: plot
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - numpy
+  - pandas
+  - snakemake-minimal
+  - matplotlib=3.7.1=py310hff52083_0
+  - matplotlib-base=3.7.1=py310he60537e_0
+  - altair==5.0.0
+  - pip:
+    - vl-convert-python==1.4.0

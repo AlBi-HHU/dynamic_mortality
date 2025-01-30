@@ -1,0 +1,173 @@
+configfile: "scripts/config.json"
+
+
+
+# start this to run the entire pipeline
+rule all:
+    input:
+        hyperparametersAndFi = expand("plot_hyperparameters_feature_importance/FI_Table_{model}_{start}_30_{predictionForDay}_{ts}_{resistance}_{version}.csv", model=config['model'], start=config['start'], predictionForDay=config['predictionForDay'], ts=config['ts'], resistance=config['resistance'], version=config['version']),
+        patientsTraining = expand("plot_patients_training/Training_Probabilities_Switching_{model}_{start}_30_{predictionForDay}_{ts}_{resistance}_{version}.png", model=config['model'], start=config['start'], predictionForDay=config['predictionForDay'], ts=config['ts'], resistance=config['resistance'], version=config['version']),
+        patientsTest = expand("plot_patients/Test_Probabilities_Switching_{model}_{start}_30_{predictionForDay}_{ts}_{resistance}_{version}.png", model=config['model'], start=config['start'], predictionForDay=config['predictionForDay'], ts=config['ts'], resistance=config['resistance'], version=config['version']),
+        metrics = expand("plot_metrics_rf_only/AUROC_Scores_LinePlot_{start}_30_{predictionForDay}_{ts}_{resistance}_{version}.png", start=config['start'], predictionForDay=config['predictionForDay'], ts=config['ts'], resistance=config['resistance'], version=config['version']),
+
+
+
+# training and testing a random forest model
+rule random_forest:
+    input:
+        "feature_extraction/X_train_{start}_{stop}_{predictionForDay}_{ts}_{resistance}.csv",
+        "prepare_test_data/X_test_{start}_{stop}_{predictionForDay}_{ts}_{resistance}.csv",
+        "split_into_train_test/y_train_{start}_{stop}_{predictionForDay}_{ts}_{resistance}.csv",
+        "split_into_train_test/y_test_{start}_{stop}_{predictionForDay}_{ts}_{resistance}.csv",
+    output:
+        "random_forest/Accuracy_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/Feature_Importances_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/Feature_Importances_Sorted_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/Hyperparameters_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/Thresholds_AUROC_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/Thresholds_AUPRC_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/GridSearch_CV_Scores_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/Patient_Output_Test_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/Patient_Output_Training_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/Model_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.onnx",
+        "random_forest/Thresholds_Training_AUROC_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "random_forest/Thresholds_Training_AUPRC_random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv"
+    threads: workflow.cores
+    conda: "envs/models.yml"
+    benchmark: "benchmarks/random_forest_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.txt"
+    script: "scripts/random_forest.py"
+
+
+# plot the random forest results
+rule plot_metrics_rf_only:
+    input:
+        both=expand("random_forest/Accuracy_random_forest_{{start}}_{stop}_{{predictionForDay}}_{{ts}}_{{resistance}}_{{version}}.csv", stop = config["stop"])
+    output:
+        "plot_metrics_rf_only/NumberOfPseudonyms_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/F1_Scores_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/F1_Scores_LinePlot_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/F1_Scores_LinePlot_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_metrics_rf_only/AUROC_Scores_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/AUROC_Scores_LinePlot_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/AUROC_Scores_LinePlot_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_metrics_rf_only/AUPRC_Scores_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/AUPRC_Scores_LinePlot_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/AUPRC_Scores_LinePlot_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_metrics_rf_only/NumberOfPseudonyms_BadOutcome_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/AUROC_Scores_CV_LinePlot_PseudonymCounts_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/AUROC_Scores_CV_LinePlot_PseudonymCounts_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_metrics_rf_only/AUPRC_Scores_CV_LinePlot_PseudonymCounts_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/AUPRC_Scores_CV_LinePlot_PseudonymCounts_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_metrics_rf_only/AUPRC_Random_Guessing_Scores_LinePlot_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_metrics_rf_only/AUPRC_Random_Guessing_Scores_LinePlot_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_metrics_rf_only/AUROC_AUPRC_Table_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_metrics_rf_only/AUPRC_Random_Guessing_Table_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_metrics_rf_only/F1_Table_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_metrics_rf_only/Figure_3_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg"
+    threads: 1
+    conda: "envs/plot.yml"
+    script: "scripts/plot_metrics_rf_only.py"
+
+
+    # plot hyperparameters and feature importances + tables
+rule plot_hyperparameters_feature_importance:
+    input:
+        hyperparameters=expand("{{model}}/Hyperparameters_{{model}}_{{start}}_{stop}_{{predictionForDay}}_{{ts}}_{{resistance}}_{{version}}.csv", stop = config["stop"]),
+        fi=expand("{{model}}/Feature_Importances_Sorted_{{model}}_{{start}}_{stop}_{{predictionForDay}}_{{ts}}_{{resistance}}_{{version}}.csv", stop = config["stop"])
+
+    output:
+        "plot_hyperparameters_feature_importance/Hyperparams_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_hyperparameters_feature_importance/Hyperparams_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_hyperparameters_feature_importance/Hyperparams_Table_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_hyperparameters_feature_importance/FI_Table_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_hyperparameters_feature_importance/Figure_4_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_hyperparameters_feature_importance/Supplementary_Figure_2_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg"
+    threads: 1
+    conda: "envs/plot.yml"
+    script: "scripts/plot_hyperparameters_feature_importance.py"
+
+
+# plot individual patients from the test set with the risk thresholds from the training data
+rule plot_patients:
+    input:
+        test=expand("{{model}}/Patient_Output_Test_{{model}}_{{start}}_{stop}_{{predictionForDay}}_{{ts}}_{{resistance}}_{{version}}.csv", stop = config["stop"]),
+        thresholds = expand("{{model}}/Thresholds_AUROC_{{model}}_{{start}}_{stop}_{{predictionForDay}}_{{ts}}_{{resistance}}_{{version}}.csv", stop = config["stop"]),
+        label = "filter_outcomes/BadOutcomesDates_{predictionForDay}.csv",
+        highLow = "plot_patients_training/HighLow_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        highLowQ = "plot_patients_training/HighLow_Quantiles_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        highLowT = "plot_patients_training/HighLow_Training_Thresholds_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv"
+    output:
+        "plot_patients/Test_Probabilities_Switching_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Binary_Switching_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_Staying_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Binary_Staying_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Binary_All_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Binary_All_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_Bad_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Binary_All_Bad_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_Three_Outcomes_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_Three_Outcomes_Threshold_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_High_Low_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_High_Low_Quantiles_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_High_Low_Quantiles_Box_Plot_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Calculations_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_patients/Test_Calculations_Plot_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_HighLow_Quantiles_1_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_HighLow_Quantiles_28_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_More_Groups_Outcomes_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_High_Low_Training_Thresholds_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_More_Groups_High_Low_Training_Thresholds_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_HighLow_Thresholds_1_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/Test_Probabilities_All_High_Low_Training_Thresholds_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_patients/Test_Probabilities_All_More_Groups_High_Low_Training_Thresholds_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_patients/Test_Calculations_Plot_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_patients/Test_Probabilities_All_Good_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients/DataFrame_Test_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_patients/Figure_5_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_patients/Supplementary_Figure_1_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_patients/Figure_2_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_patients/Table_Mean_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_patients/Min_One_Day_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv"
+    threads: 1
+    conda: "envs/plot.yml"
+    script: "scripts/plot_patients.py"
+
+
+# plot individual patients from the training set + get risk thresholds
+rule plot_patients_training:
+    input:
+        training=expand("{{model}}/Patient_Output_Training_{{model}}_{{start}}_{stop}_{{predictionForDay}}_{{ts}}_{{resistance}}_{{version}}.csv", stop = config["stop"]),
+        thresholds = expand("{{model}}/Thresholds_AUROC_{{model}}_{{start}}_{stop}_{{predictionForDay}}_{{ts}}_{{resistance}}_{{version}}.csv", stop = config["stop"]),
+        thresholdsTraining = expand("{{model}}/Thresholds_Training_AUROC_{{model}}_{{start}}_{stop}_{{predictionForDay}}_{{ts}}_{{resistance}}_{{version}}.csv", stop = config["stop"]),
+        label = "filter_outcomes/BadOutcomesDates_{predictionForDay}.csv"
+    output:
+        "plot_patients_training/Training_Probabilities_Switching_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Binary_Switching_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_Staying_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Binary_Staying_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_All_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Binary_All_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_All_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Binary_All_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_All_Bad_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Binary_All_Bad_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_All_Three_Outcomes_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_All_Three_Outcomes_Threshold_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_All_High_Low_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/HighLow_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_patients_training/HighLow_Quantiles_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_patients_training/Training_Probabilities_All_High_Low_Quantiles_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_HighLow_Quantiles_1_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_HighLow_Quantiles_28_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_All_High_Low_Training_Threshold_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_All_More_Groups_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/HighLow_Training_Thresholds_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_patients_training/Training_HighLow_Thresholds_1_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+        "plot_patients_training/Training_Probabilities_All_High_Low_Training_Threshold_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.svg",
+        "plot_patients_training/Dataframe_Training_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.csv",
+        "plot_patients_training/Training_Probabilities_All_Good_Outcome_{model}_{start}_{stop}_{predictionForDay}_{ts}_{resistance}_{version}.png",
+    threads: 1
+    conda: "envs/plot.yml"
+    script: "scripts/plot_patients_training.py"
